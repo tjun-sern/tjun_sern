@@ -1,0 +1,56 @@
+import win32print
+import win32ui
+from PIL import Image, ImageWin
+import os
+
+PHYSICAL_WIDTH = 110
+PHYSICAL_HEIGHT = 111
+
+PRINTER_NAME = win32print.GetDefaultPrinter()
+FILE_DIR = r'C:\Users\tantj\Desktop\Test_Print'
+PIXELS_PER_INCH = 96
+
+def create_printer_handler(printer_name):
+    hDC = win32ui.CreateDC()
+    hDC.CreatePrinterDC(printer_name)
+    return hDC
+
+
+def print_images(file_directory):
+    printer_handler = create_printer_handler(PRINTER_NAME)
+
+    for image in os.listdir(file_directory):
+        print_image(
+            printer_handler=printer_handler,
+            file_path=os.path.join(file_directory, image)
+        )
+
+    printer_handler.DeleteDC()
+
+
+def print_image(file_path, printer_handler=None):
+    if not printer_handler:
+        printer_handler = create_printer_handler(PRINTER_NAME)
+
+    printer_size = printer_handler.GetDeviceCaps(PHYSICAL_WIDTH), printer_handler.GetDeviceCaps(PHYSICAL_HEIGHT)
+
+    with Image.open(file_path) as bmp:
+        if bmp.size[0] < bmp.size[1]:
+            bmp = bmp.rotate(90)
+
+        # open spooling job
+        printer_handler.StartDoc(file_path)
+
+        # create page and draw image to print
+        printer_handler.StartPage()
+        dib = ImageWin.Dib(bmp)
+        dib.draw(
+            printer_handler.GetHandleOutput(),
+            # defaults start printing from (x,y) = (0,0)
+            (0, PIXELS_PER_INCH * 8 * 3, printer_size[0], printer_size[1] - PIXELS_PER_INCH * 8 * 3)
+        )
+        printer_handler.EndPage()
+
+        # end spooling job
+        printer_handler.EndDoc()
+    
